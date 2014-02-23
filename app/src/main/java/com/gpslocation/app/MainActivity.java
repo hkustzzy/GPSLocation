@@ -450,11 +450,11 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
                 String addressText = String.format(
                         "%s, %s, %s, %s, %s",
                         // If there's a street address, add it
-                        address.getMaxAddressLineIndex() > 0 ?
+                        address.getMaxAddressLineIndex() >= 0 ?
                                 address.getAddressLine(0) : "",
-                        address.getMaxAddressLineIndex() > 1 ?
+                        address.getMaxAddressLineIndex() >= 1 ?
                                 address.getAddressLine(1) : "",
-                        address.getMaxAddressLineIndex() > 2 ?
+                        address.getMaxAddressLineIndex() >= 2 ?
                                 address.getAddressLine(2) : "",
                         // Locality is usually a city
                         address.getLocality(),
