@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -15,11 +16,20 @@ import android.os.AsyncTask;
 import android.os.Build;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Adapter;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Filter;
+import android.widget.Filterable;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -32,6 +42,7 @@ import com.google.android.gms.drive.Drive;
 import com.google.android.gms.location.LocationClient;
 import com.google.android.gms.location.LocationListener;
 import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.UiSettings;
@@ -42,7 +53,17 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -56,7 +77,7 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
     // Milliseconds per second
     private static final int MILLISECONDS_PER_SECOND = 1000;
     // Update frequency in seconds
-    public static final int UPDATE_INTERVAL_IN_SECONDS = 5;
+    public static final int UPDATE_INTERVAL_IN_SECONDS = 60;
     // Update frequency in milliseconds
     private static final long UPDATE_INTERVAL =
             MILLISECONDS_PER_SECOND * UPDATE_INTERVAL_IN_SECONDS;
@@ -75,9 +96,85 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
     Location mLocation;
     Location mCurrentLocation;
     Button mButton;
+    LatLng latLng;
+    MarkerOptions markerOptions;
+    Context mcontext;
 
     private TextView mAddress;
     private ProgressBar mActivityIndicator;
+
+    private static final String LOG_TAG = "ExampleApp";
+    private static final String PLACES_API_BASE = "https://maps.googleapis.com/maps/api/place";
+    private static final String TYPE_AUTOCOMPLETE = "/autocomplete";
+    private static final String OUT_JSON = "/json";
+    private static final String API_KEY = "AIzaSyBlsKtm2FOm6qY5wOfMWDYyMpxTlKSzccI";
+
+
+    private ArrayList<String> autocomplete(String input) {
+
+        System.out.println("autocomplete start");
+
+        ArrayList<String> resultList = null;
+
+        ArrayList<String> typeList = null;
+
+
+        HttpURLConnection conn = null;
+        StringBuilder jsonResults = new StringBuilder();
+        try {
+            StringBuilder sb = new StringBuilder(PLACES_API_BASE + TYPE_AUTOCOMPLETE + OUT_JSON);
+            sb.append("?sensor=false&key=" + API_KEY);
+            //sb.append("&components=country:uk");
+            sb.append("&input=" + URLEncoder.encode(input, "utf8"));
+
+            URL url = new URL(sb.toString());
+            conn = (HttpURLConnection) url.openConnection();
+            InputStreamReader in = new InputStreamReader(conn.getInputStream());
+
+
+            // Load the results into a StringBuilder
+            int read;
+            char[] buff = new char[1024];
+            while ((read = in.read(buff)) != -1) {
+                jsonResults.append(buff, 0, read);
+            }
+
+        } catch (MalformedURLException e) {
+            Log.e(LOG_TAG, "Error processing Places API URL", e);
+            return resultList;
+        } catch (IOException e) {
+            Log.e(LOG_TAG, "Error connecting to Places API", e);
+            return resultList;
+        } finally {
+            if (conn != null) {
+                conn.disconnect();
+            }
+        }
+
+        try {
+            // Create a JSON object hierarchy from the results
+            JSONObject jsonObj = new JSONObject(jsonResults.toString());
+            JSONArray predsJsonArray = jsonObj.getJSONArray("predictions");
+
+            // Extract the Place descriptions from the results
+            resultList = new ArrayList<String>(predsJsonArray.length());
+            typeList = new ArrayList<String>(predsJsonArray.length());
+
+            for (int i = 0; i < predsJsonArray.length(); i++) {
+
+                String description = predsJsonArray.getJSONObject(i).getString("description");
+                String types = predsJsonArray.getJSONObject(i).getString("types");
+                resultList.add(description + "%%" + types);
+                typeList.add(types);
+                System.out.println("description: "+ description + ",types:" + types);
+
+            }
+        } catch (JSONException e) {
+            Log.e(LOG_TAG, "Cannot process JSON results", e);
+        }
+
+        return resultList;
+    }
 
 
 
@@ -87,6 +184,8 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        mcontext = this;
+
         googleMap = ((MapFragment) getFragmentManager().findFragmentById(R.id.map)).getMap();
         googleMap.setMyLocationEnabled(true);
         System.out.println(googleMap.getMyLocation()==null?"null":googleMap.getMyLocation().toString());
@@ -94,19 +193,7 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
         mLocationClient = new LocationClient(this, this, this);
         // Start with updates turned off
         mUpdatesRequested = true;
-/*
-        Marker melbourne = googleMap.addMarker(new MarkerOptions()
-                .position(PERTH)
-                .draggable(true));
 
-        LatLng NEWARK = new LatLng(40.714086, -74.228697);
-        GroundOverlayOptions newarkMap = new GroundOverlayOptions()
-                .image(BitmapDescriptorFactory.fromResource(R.drawable.girl))
-                .position(NEWARK, 8600f, 6500f)
-                .visible(true);
-        // Add an overlay to the map, retaining a handle to the GroundOverlay object.
-        googleMap.addGroundOverlay(newarkMap);
-*/
         UiSettings uiSettings = googleMap.getUiSettings();
         uiSettings.setMyLocationButtonEnabled(true);
 
@@ -128,8 +215,6 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
         mActivityIndicator =
                 (ProgressBar) findViewById(R.id.address_progress);
         mButton = (Button) findViewById(R.id.getaddress);
-
-
         mButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -137,11 +222,47 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
             }
         });
 
+        // Getting reference to btn_find of the layout activity_main
+        Button btn_find = (Button) findViewById(R.id.btn_find);
+                // Defining button click event listener for the find button
+            View.OnClickListener findClickListener = new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                // Getting reference to EditText to get the user input location
+                    AutoCompleteTextView etLocation = (AutoCompleteTextView) findViewById(R.id.et_location);
+                // Getting user input location
+                    String location = etLocation.getText().toString();
+                    if(location!=null && !location.equals("")){
+                        new GeocoderTask().execute(location);
+                    }
+                }
+            };
+            // Setting button click event listener for the find button
+            btn_find.setOnClickListener(findClickListener);
 
-//        Location mCurrentLocation = null;
-//        mCurrentLocation = mLocationClient.getLastLocation();
-//        System.out.println("Latitude:"+ mCurrentLocation.getLatitude()+"\n Longitude:"+ mCurrentLocation.getLongitude()+
-//                "\n Accuracy:"+ mCurrentLocation.getAccuracy()+ "time:"+ mCurrentLocation.getTime());
+
+        AutoCompleteTextView autoCompView = (AutoCompleteTextView) findViewById(R.id.et_location);
+        autoCompView.setAdapter(new PlacesAutoCompleteAdapter(this, R.layout.list_item));
+        autoCompView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+
+                String str = (String) adapterView.getItemAtPosition(i);
+                System.out.println("AutoCompleteTextView: "+ str);
+                Toast.makeText(mcontext, str, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
+        googleMap.setInfoWindowAdapter(new MyInfoWindowAdapter());
+        googleMap.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
+            @Override
+            public void onInfoWindowClick(Marker marker) {
+                Toast.makeText(mcontext, marker.getTitle(), Toast.LENGTH_SHORT).show();
+
+            }
+        });
+
 
     }
 
@@ -220,7 +341,6 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
                     mPrefs.getBoolean("KEY_UPDATES_ON", true);
 
             System.out.println("onResume-mPrefs.getBoolean:" +mPrefs.getBoolean("KEY_UPDATES_ON", true));
-
 
             // Otherwise, turn off location updates
         } else {
@@ -485,4 +605,175 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
 
     }
 
+    // An AsyncTask class for accessing the GeoCoding Web Service
+    private class GeocoderTask extends AsyncTask<String, Void, List<Address>>{
+
+        @Override
+        protected List<Address> doInBackground(String... locationName) {
+            // Creating an instance of Geocoder class
+            Geocoder geocoder = new Geocoder(getBaseContext());
+            List<Address> addresses = null;
+
+            try {
+                // Getting a maximum of 3 Address that matches the input text
+                addresses = geocoder.getFromLocationName(locationName[0], 3);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return addresses;
+        }
+
+        @Override
+        protected void onPostExecute(List<Address> addresses) {
+
+            if(addresses==null || addresses.size()==0){
+                Toast.makeText(getBaseContext(), "No Location found", Toast.LENGTH_SHORT).show();
+            }
+
+            // Clears all the existing markers on the map
+            googleMap.clear();
+
+            // Adding Markers on Google Map for each matching address
+            for(int i=0;i<addresses.size();i++){
+
+                Address address = (Address) addresses.get(i);
+
+                // Creating an instance of GeoPoint, to display in Google Map
+                latLng = new LatLng(address.getLatitude(), address.getLongitude());
+
+                String addressText = String.format("%s, %s",
+                        address.getMaxAddressLineIndex() > 0 ? address.getAddressLine(0) : "",
+                        address.getCountryName());
+
+                System.out.println(address.toString());
+                markerOptions = new MarkerOptions();
+                markerOptions.position(latLng);
+                markerOptions.title(addressText);
+                markerOptions.snippet("latitude:"+ address.getLatitude()+"longitude:" +address.getLongitude());
+
+                googleMap.addMarker(markerOptions);
+
+                // Locate the first location
+                if(i==0)
+                    googleMap.animateCamera(CameraUpdateFactory.newLatLng(latLng));
+            }
+
+
+            googleMap.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+                @Override
+                public boolean onMarkerClick(Marker marker) {
+                    return false;
+                }
+            });
+        }
+    }
+
+
+    private class MyInfoWindowAdapter implements GoogleMap.InfoWindowAdapter {
+
+        private final View myContentsView;
+
+        MyInfoWindowAdapter(){
+            myContentsView = getLayoutInflater().inflate(R.layout.infowindow, null);
+
+        }
+
+        @Override
+        public View getInfoWindow(Marker marker) {
+//
+            TextView tvTitle = ((TextView)myContentsView.findViewById(R.id.info_title));
+            tvTitle.setText(marker.getTitle());
+            TextView tvSnippet = ((TextView)myContentsView.findViewById(R.id.info_snippet));
+            tvSnippet.setText(marker.getSnippet());
+            Button confirm = (Button)myContentsView.findViewById(R.id.info_ask);
+            Button cancel = (Button)myContentsView.findViewById(R.id.info_cancel);
+
+            confirm.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View view) {
+                    Toast.makeText(getBaseContext(),"click",Toast.LENGTH_LONG).show();
+                }
+            });
+
+            //TextView tvSnippet = ((TextView)myContentsView.findViewById(R.id.snippet));
+            //tvSnippet.setText(marker.getSnippet());
+
+            return myContentsView;
+        }
+
+        @Override
+        public View getInfoContents(Marker marker) {
+            return null;
+        }
+    }
+
+
+    private class PlacesAutoCompleteAdapter extends ArrayAdapter<String> implements Filterable {
+        private ArrayList<String> resultList;
+        public ArrayList<String[]> nameList;
+
+        public ArrayList<String[]> getNameList() {
+            return nameList;
+        }
+
+        public void setNameList(ArrayList<String[]> nameList) {
+            this.nameList = nameList;
+        }
+
+        public PlacesAutoCompleteAdapter(Context context, int textViewResourceId) {
+            super(context, textViewResourceId);
+        }
+
+        @Override
+        public int getCount() {
+            return resultList.size();
+        }
+
+        @Override
+        public String getItem(int index) {
+            return nameList.get(index)[0];
+        }
+
+        public String[] getfullItem(int index){
+            return nameList.get(index);
+        }
+
+        @Override
+        public Filter getFilter() {
+            Filter filter = new Filter() {
+                @Override
+                protected Filter.FilterResults performFiltering(CharSequence constraint) {
+                    FilterResults filterResults = new FilterResults();
+                    if (constraint != null) {
+                        // Retrieve the autocomplete results.
+                        resultList = autocomplete(constraint.toString());
+                        nameList = new ArrayList<String[]>();
+
+                        for(String result:resultList){
+                            String[] splite = result.split("%%");
+                            System.out.println(splite[0]+":"+splite[1]);
+                            nameList.add(splite);
+                        }
+                        // Assign the data to the FilterResults
+                        filterResults.values = nameList;
+                        filterResults.count = nameList.size();
+                    }
+                    return filterResults;
+                }
+
+                @Override
+                protected void publishResults(CharSequence constraint, FilterResults results) {
+                    if (results != null && results.count > 0) {
+                        notifyDataSetChanged();
+                    }
+                    else {
+                        notifyDataSetInvalidated();
+                    }
+                }};
+            return filter;
+        }
+    }
+
 }
+
+

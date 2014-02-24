@@ -4,27 +4,53 @@
     android:layout_height="fill_parent"
     xmlns:android="http://schemas.android.com/apk/res/android">
 
-
-    <TextView
-        android:id="@+id/address"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        />
-
+<LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    >
     <Button
+        android:id="@+id/btn_find"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:id="@+id/getaddress"
-        android:text="get address"
+        android:text="search"
+        android:layout_alignParentRight="true" />
+
+    <AutoCompleteTextView
+        android:id="@+id/et_location"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:inputType="text"
+        android:hint="please enter address"
+        android:layout_toLeftOf="@id/btn_find" />
+
+</LinearLayout>
+<LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <Button
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:id="@+id/getaddress"
+            android:text="get address"
+            />
+
+        <ProgressBar
+            android:id="@+id/address_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:indeterminate="true"
+            android:visibility="gone" />
+        <TextView
+            android:id="@+id/address"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="my current address"
         />
 
-    <ProgressBar
-        android:id="@+id/address_progress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:indeterminate="true"
-        android:visibility="gone" />
+</LinearLayout>
 
 
 

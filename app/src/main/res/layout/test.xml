@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/RlMain"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content" >
+
+
+    <LinearLayout
+        android:id="@+id/imageview_comment"
+        android:layout_width="150dp"
+        android:layout_height="100dp"
+        android:background="@drawable/girl"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:scaleType="fitXY"
+        android:visibility="visible" >
+
+        <TextView
+            android:id="@+id/textview_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginLeft="10dp"
+            android:text="Bhavesh Patadiya"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textview_aboutme"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_marginLeft="10dp"
+            android:maxLines="2"
+            android:text="How&apos;s Going?"
+            android:textColor="#FFFFFF"
+            android:textStyle="normal" />
+    </LinearLayout>
+</LinearLayout>
