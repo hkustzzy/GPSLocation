@@ -203,7 +203,7 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
         // Set the update interval to 5 seconds
         mLocationRequest.setInterval(UPDATE_INTERVAL);
         // Set the fastest update interval to 1 second
-        mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
+        //mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
 
         // Open the shared preferences
         mPrefs = getSharedPreferences("SharedPreferences",
@@ -641,9 +641,14 @@ public class MainActivity extends ActionBarActivity implements GooglePlayService
                 // Creating an instance of GeoPoint, to display in Google Map
                 latLng = new LatLng(address.getLatitude(), address.getLongitude());
 
+//                String addressText = String.format("%s, %s",
+//                        address.getMaxAddressLineIndex() > 0 ? address.getAddressLine(0) : "",
+//                        address.getCountryName());
+
+
                 String addressText = String.format("%s, %s",
-                        address.getMaxAddressLineIndex() > 0 ? address.getAddressLine(0) : "",
-                        address.getCountryName());
+                        address.getMaxAddressLineIndex() >= 1 ? address.getAddressLine(1) : "",
+                        address.getMaxAddressLineIndex() >= 2 ? address.getAddressLine(2) : "");
 
                 System.out.println(address.toString());
                 markerOptions = new MarkerOptions();
